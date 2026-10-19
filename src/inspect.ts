@@ -11,7 +11,7 @@
  */
 
 import { chromium, type Frame, type Page } from "playwright";
-import { chromeProfileDir } from "./config.js";
+import { chromeLaunchOptions, chromeProfileDir } from "./config.js";
 import { ensureProfileUnlocked } from "./login.js";
 import { applySeeds, type Seeds } from "./setup.js";
 
@@ -220,7 +220,7 @@ export async function inspectPage(opts: InspectOptions): Promise<InspectResult> 
   await ensureProfileUnlocked(profileDir);
   const viewport = opts.viewport ?? { width: 1280, height: 720 };
   const context = await chromium.launchPersistentContext(profileDir, {
-    channel: "chrome",
+    ...chromeLaunchOptions(),
     headless: opts.headless !== false,
     args: ["--disable-blink-features=AutomationControlled"],
     viewport,

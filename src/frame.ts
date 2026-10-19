@@ -8,6 +8,7 @@
  */
 
 import { chromium } from "playwright";
+import { chromeLaunchOptions } from "./config.js";
 import type { Brand, Frame } from "./types.js";
 
 export interface FrameLayout {
@@ -189,7 +190,7 @@ export async function renderFramePng(
     <div class="canvas">${device ? '<div class="bezel"></div>' : ""}<div class="win"></div>${chromeHtml}</div>${deviceHtml}
   </body></html>`;
 
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await chromium.launch({ ...chromeLaunchOptions(), headless: true });
   const context = await browser.newContext({
     viewport: { width: W, height: H },
     deviceScaleFactor: pxScale,

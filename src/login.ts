@@ -104,7 +104,8 @@ export async function login(profileDir?: string, opts: LoginOptions = {}): Promi
         detached: true,
       }).unref();
     } else {
-      const bin = process.env.CHROME_BIN || "google-chrome";
+      const bin =
+        process.env.CHROME_BIN || process.env.AIDEMO_CHROME_EXECUTABLE || "google-chrome";
       const child = spawn(bin, args, { stdio: "ignore", detached: true });
       child.on("error", () => {
         log(`could not launch "${bin}" (set CHROME_BIN) — open Chrome yourself with:`);

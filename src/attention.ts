@@ -14,6 +14,7 @@
 
 import { chromium, type Page } from "playwright";
 import { resolve } from "node:path";
+import { chromeLaunchOptions } from "./config.js";
 import type { AttentionEvent, AttentionStyle, RedactSpan } from "./types.js";
 import { ensureDir } from "./util.js";
 
@@ -107,7 +108,7 @@ export async function renderAttentionPngs(
 ): Promise<OverlayItem[]> {
   if (events.length === 0) return [];
   await ensureDir(outDir);
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await chromium.launch({ ...chromeLaunchOptions(), headless: true });
   const context = await browser.newContext({
     viewport: { width: videoW, height: videoH },
     deviceScaleFactor: pxScale,
@@ -231,7 +232,7 @@ export async function renderKeyChipPngs(
 ): Promise<OverlayItem[]> {
   if (keys.length === 0) return [];
   await ensureDir(outDir);
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await chromium.launch({ ...chromeLaunchOptions(), headless: true });
   const context = await browser.newContext({
     viewport: { width: 600, height: 120 },
     deviceScaleFactor: pxScale,
@@ -287,7 +288,7 @@ export async function renderClickRingPngs(
 ): Promise<OverlayItem[]> {
   if (clicks.length === 0) return [];
   await ensureDir(outDir);
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await chromium.launch({ ...chromeLaunchOptions(), headless: true });
   const context = await browser.newContext({
     viewport: { width: 64, height: 64 },
     deviceScaleFactor: pxScale,

@@ -161,7 +161,10 @@ open examples/local-demo/output/final-demo.mp4   # xdg-open on Linux, start on W
 Voice/captions need `OPENAI_API_KEY` in `.env` — **or** `AIDEMO_TTS_PROVIDER=local`
 (no key, offline), **or** `OPENAI_BASE_URL` at a local server. See
 [docs/LOCAL_MODELS.md](docs/LOCAL_MODELS.md). No Playwright browser download is
-needed — the engine uses your system Chrome (`channel: "chrome"`).
+needed — the engine uses your system Chrome (`channel: "chrome"`); on a machine
+where that channel path doesn't exist (e.g. no `/opt/google/chrome/chrome` and
+no sudo), point `AIDEMO_CHROME_EXECUTABLE` at any Chrome / Chrome-for-Testing
+binary and every stage (record, inspect, rasterizers) uses it instead.
 
 [![Quickstart output — the bundled fixture rendered end-to-end](docs/quickstart.gif)](https://github.com/tandryukha/aidemo/releases/download/v0.3.0/quickstart-demo.mp4)
 

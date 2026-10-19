@@ -1,10 +1,14 @@
 import { createReadStream, promises as fs } from "node:fs";
 import { createHash } from "node:crypto";
+import { spawn } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Project } from "./project.js";
 import {
   requireOpenAiKey,
   openAiBaseUrl,
   STT_MODEL,
+  STT_PROVIDER,
   explainAudioEndpointError,
 } from "./config.js";
 import {
@@ -37,6 +41,118 @@ interface Word {
   word: string;
   start: number; // seconds
   end: number; // seconds
+}
+
+/** One VibeVoice-ASR segment as it arrives inside `message.content`. */
+interface VibeSegment {
+  Start: number;
+  End: number;
+  Speaker: number;
+  Content: string;
+}
+
+/**
+ * Transcribe via the VibeVoice-ASR chat-completions shape (see the gateway's
+ * usage guide): base64 WAV `input_audio` part, JSON segments with
+ * utterance-level timestamps in `message.content`. Segments are converted to
+ * word timings by distributing each segment's words evenly across its span —
+ * coarser than Whisper's per-word marks, but the audio-derived utterance
+ * boundaries are real, and `alignCaptionWords` snaps the storyboard script
+ * onto them for spelling.
+ */
+async function transcribeVibevoice(narrationPath: string): Promise<Word[]> {
+  const base = openAiBaseUrl();
+  if (!base) {
+    throw new Error(
+      "AIDEMO_STT_PROVIDER=vibevoice needs OPENAI_BASE_URL pointing at the " +
+        "gateway that serves VibeVoice-ASR (it is a chat-completions model, " +
+        "not a Whisper-style audio endpoint)."
+    );
+  }
+  // 16 kHz mono WAV: standard ASR input, ~1/3 the payload of 44.1 kHz stereo.
+  const wavPath = join(tmpdir(), `aidemo-vibevoice-${Date.now()}.wav`);
+  await new Promise<void>((resolve, reject) => {
+    const proc = spawn(
+      "ffmpeg",
+      ["-hide_banner", "-loglevel", "error", "-y", "-i", narrationPath, "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", wavPath],
+      { stdio: ["ignore", "ignore", "pipe"] }
+    );
+    let stderr = "";
+    proc.stderr.on("data", (d) => (stderr += d.toString()));
+    proc.on("error", reject);
+    proc.on("close", (code) =>
+      code === 0 ? resolve() : reject(new Error(`ffmpeg wav conversion exited ${code}: ${stderr.split("\n").slice(-5).join("\n")}`))
+    );
+  });
+  try {
+    const { default: OpenAI } = await import("openai");
+    const client = new OpenAI({ apiKey: requireOpenAiKey(), baseURL: base });
+    const wav = await fs.readFile(wavPath);
+    const model = STT_MODEL();
+    const seconds = wav.length / (16000 * 2); // 16 kHz mono s16le
+    const res = await client.chat.completions
+      .create({
+        model,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a helpful assistant that transcribes audio input into text output in JSON format.",
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `This is a ${seconds.toFixed(1)} seconds audio, please transcribe it with these keys: Start time, End time, Speaker ID, Content`,
+              },
+              { type: "input_audio", input_audio: { data: wav.toString("base64"), format: "wav" } },
+            ],
+          },
+        ],
+        temperature: 0,
+        // VibeVoice exhibits a post-audio repetition loop when it fails to
+        // emit EOS; a mild penalty suppresses it (gateway usage guide). Not
+        // an OpenAI SDK param — passed through as an untyped extra, which
+        // the gateway forwards to vLLM.
+        ...((
+          { repetition_penalty: 1.05 } as unknown as Record<string, unknown>
+        )),
+        // Rule of thumb from the guide: ~35 tokens per audio-second + headroom.
+        max_tokens: Math.ceil(35 * seconds + 500),
+      })
+      .catch((err) => explainAudioEndpointError(err, "stt"));
+    const content = (res as { choices?: { message?: { content?: string } }[] })
+      .choices?.[0]?.message?.content ?? "";
+    const json = content.trim().replace(/^assistant\n?/, "");
+    let segments: VibeSegment[];
+    try {
+      segments = JSON.parse(json) as VibeSegment[];
+    } catch {
+      throw new Error(
+        `VibeVoice response was not a JSON segment array (finish_reason=${
+          (res as { choices?: { finish_reason?: string }[] }).choices?.[0]?.finish_reason ?? "?"
+        }); content head: ${json.slice(0, 160)}`
+      );
+    }
+    const words: Word[] = [];
+    for (const seg of segments) {
+      const tokens = String(seg.Content ?? "").trim().split(/\s+/).filter(Boolean);
+      if (tokens.length === 0) continue;
+      const dur = Math.max(0.001, seg.End - seg.Start);
+      const slice = dur / tokens.length;
+      tokens.forEach((t, i) => {
+        words.push({
+          word: t,
+          start: seg.Start + i * slice,
+          end: seg.Start + (i + 1) * slice,
+        });
+      });
+    }
+    return words;
+  } finally {
+    await fs.rm(wavPath, { force: true });
+  }
 }
 
 /**
@@ -163,6 +279,7 @@ export async function generateCaptions(
   const narrationHash = await fileHash(project.narrationPath);
   const inputHash = hashOf({
     mode: "stt",
+    sttProvider: STT_PROVIDER(),
     narrationHash,
     model,
     endpoint,
@@ -180,23 +297,31 @@ export async function generateCaptions(
     return;
   }
 
-  // Lazy import: the offline path below must work without touching the SDK.
-  const { default: OpenAI } = await import("openai");
-  // baseURL undefined → api.openai.com; set → any OpenAI-compatible server.
-  const client = new OpenAI({ apiKey: requireOpenAiKey(), baseURL: base });
-
-  const res = await client.audio.transcriptions
-    .create({
-      file: createReadStream(project.narrationPath),
-      model,
-      response_format: "verbose_json",
-      timestamp_granularities: ["word"],
-      ...(prompt ? { prompt } : {}),
-      ...(language ? { language } : {}),
-    })
-    .catch((err) => explainAudioEndpointError(err, "stt"));
-
-  const words: Word[] = (res as unknown as { words?: Word[] }).words ?? [];
+  const provider = STT_PROVIDER();
+  let words: Word[];
+  if (provider === "vibevoice") {
+    // Chat-completions shaped ASR (gateway-served VibeVoice): segment
+    // timestamps, converted to word timings inside. Prompt bias and the
+    // language hint are Whisper-request params and don't apply.
+    step(`STT provider: vibevoice (chat-completions @ ${base})`);
+    words = await transcribeVibevoice(project.narrationPath);
+  } else {
+    // Lazy import: the offline path below must work without touching the SDK.
+    const { default: OpenAI } = await import("openai");
+    // baseURL undefined → api.openai.com; set → any OpenAI-compatible server.
+    const client = new OpenAI({ apiKey: requireOpenAiKey(), baseURL: base });
+    const res = await client.audio.transcriptions
+      .create({
+        file: createReadStream(project.narrationPath),
+        model,
+        response_format: "verbose_json",
+        timestamp_granularities: ["word"],
+        ...(prompt ? { prompt } : {}),
+        ...(language ? { language } : {}),
+      })
+      .catch((err) => explainAudioEndpointError(err, "stt"));
+    words = (res as unknown as { words?: Word[] }).words ?? [];
+  }
   if (words.length === 0) {
     log("no word timestamps returned; captions may be empty");
   }

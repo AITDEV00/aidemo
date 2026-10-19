@@ -103,6 +103,20 @@ export const TTS_MODEL = () => process.env.AIDEMO_TTS_MODEL || "gpt-4o-mini-tts"
 export const STT_MODEL = () => process.env.AIDEMO_STT_MODEL || "whisper-1";
 
 /**
+ * STT transport for `aidemo captions` / the captions stage of `render`.
+ * Unset → the OpenAI-compatible `/v1/audio/transcriptions` endpoint
+ * (api.openai.com or whatever OPENAI_BASE_URL points at), the historical
+ * behavior. `vibevoice` → the VibeVoice-ASR chat-completions shape: audio is
+ * sent inline as a base64 WAV `input_audio` part to `/v1/chat/completions`
+ * and the response carries SEGMENT timestamps ({Start, End, Speaker,
+ * Content}); the captions stage distributes words within each segment so the
+ * script-alignment path still gets real measured timing. For gateways that
+ * serve ASR as a chat model (e.g. a LiteLLM fronting hosted_vllm
+ * VibeVoice-ASR) rather than as a Whisper-style audio endpoint.
+ */
+export const STT_PROVIDER = () => process.env.AIDEMO_STT_PROVIDER || "openai";
+
+/**
  * TTS backend for `aidemo voice`. Unset → OpenAI (or whatever OPENAI_BASE_URL
  * points at), exactly as before this knob existed. Captions/STT are unaffected —
  * they always use the OpenAI-compatible endpoint (but see captionsAutoOffline).
@@ -204,6 +218,23 @@ export function explainAudioEndpointError(err: unknown, kind: "tts" | "stt"): ne
 /** Dedicated Chrome profile handed to Playwright (logged into ChatGPT). */
 export const chromeProfileDir = () =>
   process.env.AIDEMO_CHROME_PROFILE || resolve(REPO_ROOT, "chrome-profile");
+
+/**
+ * Chrome executable override for every Playwright launch the engine makes
+ * (recorder, inspect, and the compose-time rasterizers: captions, cards,
+ * cursor, frame, attention overlays). Unset → `{ channel: "chrome" }`, the
+ * historical behavior (Playwright resolves the system Chrome install —
+ * /opt/google/chrome/chrome on Linux). Set `AIDEMO_CHROME_EXECUTABLE` to a
+ * Chrome/Chromium-for-Testing binary when that channel path doesn't exist —
+ * e.g. a machine with no sudo access, or a pinned Chrome for Testing under
+ * ~/.cache/ms-playwright. The file must be a Chrome-family browser, not a
+ * vanilla Playwright "chromium" build (no channel branding) — Cloudflare and
+ * Google SSO both fingerprint those.
+ */
+export function chromeLaunchOptions(): { channel: "chrome" } | { executablePath: string } {
+  const exe = process.env.AIDEMO_CHROME_EXECUTABLE;
+  return exe ? { executablePath: exe } : { channel: "chrome" };
+}
 
 /** Default capture path: playwright | native | obs (see src/capture.ts). */
 export const defaultCaptureMode = () => process.env.AIDEMO_CAPTURE || "playwright";

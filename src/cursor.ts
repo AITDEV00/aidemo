@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import { chromeLaunchOptions } from "./config.js";
 
 /**
  * The classic arrow pointer, shared by both cursor render paths so they look
@@ -30,7 +31,7 @@ export async function renderCursorPng(
   // Logical canvas is 32 units (24 arrow + shadow headroom); scale to sizePx.
   const LOGICAL = 32;
   const dsf = Math.max(1, sizePx / LOGICAL);
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await chromium.launch({ ...chromeLaunchOptions(), headless: true });
   const context = await browser.newContext({
     viewport: { width: LOGICAL, height: LOGICAL },
     deviceScaleFactor: dsf,

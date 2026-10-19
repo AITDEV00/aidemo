@@ -1,5 +1,6 @@
 import { chromium } from "playwright";
 import { resolve } from "node:path";
+import { chromeLaunchOptions } from "./config.js";
 import type { Cue } from "./captions.js";
 import type { CaptionsConfig } from "./types.js";
 import { ensureDir } from "./util.js";
@@ -28,7 +29,7 @@ export async function renderCaptionPngs(
   look: CaptionsConfig & { font?: string } = {}
 ): Promise<RenderedCue[]> {
   await ensureDir(outDir);
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await chromium.launch({ ...chromeLaunchOptions(), headless: true });
   // Layout at the storyboard's logical width; deviceScaleFactor matches the
   // raw video's pixel density (1 for Playwright capture, 2 for native/OBS
   // retina capture) so the PNG overlays the frame 1:1.

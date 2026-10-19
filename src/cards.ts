@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import { chromeLaunchOptions } from "./config.js";
 import type { Brand, Card } from "./types.js";
 
 /**
@@ -17,7 +18,7 @@ export async function renderCardPng(
   brand?: Brand,
   logoDataUri?: string
 ): Promise<void> {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await chromium.launch({ ...chromeLaunchOptions(), headless: true });
   const context = await browser.newContext({
     viewport: { width: logicalW, height: logicalH },
     deviceScaleFactor: scale,

@@ -17,7 +17,7 @@ import { resolve, dirname, basename } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { platform, release } from "node:os";
-import { ENGINE_ROOT, engineVersion, openAiBaseUrl, ttsProvider } from "./config.js";
+import { ENGINE_ROOT, engineVersion, openAiBaseUrl, ttsProvider, chromeLaunchOptions } from "./config.js";
 import { localTtsStatus } from "./voice-local.js";
 import { Project } from "./project.js";
 import { STARTER_BRIEF, STARTER_STORYBOARD, briefFromInspect, storyboardFromInspect } from "./starter.js";
@@ -350,6 +350,11 @@ async function probeCmd(cmd: string, args: string[]): Promise<string | null> {
 
 /** Locate Chrome across platforms; returns a version string or install path. */
 async function probeChrome(): Promise<string | null> {
+  const override = chromeLaunchOptions();
+  if ("executablePath" in override) {
+    // Explicit AIDEMO_CHROME_EXECUTABLE — report that binary, not PATH guesses.
+    return (await probeCmd(override.executablePath, ["--version"])) ?? override.executablePath;
+  }
   const version =
     (await probeCmd("google-chrome", ["--version"])) ??
     (await probeCmd("google-chrome-stable", ["--version"])) ??

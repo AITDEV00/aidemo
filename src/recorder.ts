@@ -18,6 +18,7 @@ import {
   captureDevice,
   obsUrl,
   obsPassword,
+  chromeLaunchOptions,
 } from "./config.js";
 import {
   type CaptureMode,
@@ -312,7 +313,7 @@ export async function record(
   let context;
   try {
     context = await chromium.launchPersistentContext(profileDir, {
-      channel: "chrome",
+      ...chromeLaunchOptions(),
       headless: options.headed === false,
       // Hide the automation fingerprint (navigator.webdriver=false) so
       // Cloudflare on chatgpt.com doesn't throw a "Verify you are human"

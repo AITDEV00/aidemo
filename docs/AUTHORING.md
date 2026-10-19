@@ -1343,6 +1343,19 @@ Very short cues are merged forward. Tune per storyboard under `captions`:
 length, how many fall under `minCueMs`), and `aidemo qa` flags a run with lots
 of flash cues or mid-clause splits.
 
+**ASR served as a chat model (VibeVoice).** Some gateways expose ASR as a
+chat-completions model rather than a Whisper-style `/v1/audio/transcriptions`
+endpoint — e.g. a LiteLLM fronting hosted-vLLM `microsoft/VibeVoice-ASR`, which
+takes a base64 WAV `input_audio` part and returns utterance-level segments
+(`{Start, End, Speaker, Content}` in `message.content`). For those, set
+`AIDEMO_STT_PROVIDER=vibevoice` (plus `OPENAI_BASE_URL` at the gateway and
+`AIDEMO_STT_MODEL=microsoft/VibeVoice-ASR`): the captions stage transcribes
+through the chat shape and distributes each segment's words across its measured
+span, so cue boundaries still follow the real speech rhythm. Utterance timing
+is coarser than Whisper's per-word marks — pair it with `--align-script`
+thinking if spelling drifts (the prompt-bias/language-hint params above are
+Whisper-request fields and are not sent on this path).
+
 ## Multi-language renders (one take, N languages)
 
 Record the browser flow **once**, then ship the same demo in several languages —
