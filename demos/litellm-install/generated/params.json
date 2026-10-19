@@ -1,0 +1,6 @@
+{
+  "params": {
+    "gatewayUrl": "https://litellm.ecouncil.ae",
+    "apiKey": "sk-REPLACE-ME"
+  }
+}

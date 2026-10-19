@@ -1,0 +1,16 @@
+# The machine the /install flow runs on, for the aidemo demo video.
+# Deliberately minimal: curl + ca-certificates only. The install script
+# downloads jq and cc-switch itself — that's part of the story we record.
+FROM docker.io/library/ubuntu:latest
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# Simulate a dev machine where Gemini CLI and OpenCode are already installed.
+# The install script's detection (config dir exists) then offers exactly these
+# two in its menu — the feature this demo shows off. A bare image with none of
+# these dirs gets the clear "none installed" error instead.
+RUN mkdir -p /root/.config/opencode /root/.gemini \
+ && echo '{}' > /root/.config/opencode/opencode.json

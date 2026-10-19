@@ -14,9 +14,12 @@ chrome-profile-*/
 # throwaway profiles from `record --fresh`
 **/.chrome-profile-fresh/
 
-# Private working area — real product demos are not part of the public repo
-# (use `aidemo init <name>` to scaffold your own under demos/)
-demos/
+# Demo projects under demos/ are TRACKED so an example setup (Containerfile,
+# preflight.sh, storyboard.json, params.json, probe scripts) stays
+# referenceable. Heavy/reproducible artifacts are still ignored by the rules
+# below (recordings/, audio/, output/, logs/, timeline.json, captions.*).
+# NEVER put a live key in a tracked demo file — use a placeholder or an env var
+# (e.g. GATEWAY_KEY); gitleaks runs in CI.
 
 # Internal strategy docs (launch plan, PRFAQ, session feedback)
 docs/internal/
@@ -31,6 +34,9 @@ docs/internal/
 **/generated/timeline.prev.json
 **/generated/params.json
 **/generated/captions.srt
+# ...but keep a tracked demo's resolved parameter defaults so the example
+# documents how it is parameterized (non-secret placeholders only).
+!**/generated/params.json
 **/generated/captions.vtt
 **/generated/captions.cues.json
 **/generated/captions.manifest.json

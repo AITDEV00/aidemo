@@ -1,0 +1,79 @@
+{
+  "title": "ADEO LiteLLM Gateway — one line to a configured harness",
+  "targetLengthSeconds": 50,
+  "video": { "width": 1920, "height": 1080 },
+  "params": {
+    "gatewayUrl": "https://litellm.ecouncil.ae",
+    "apiKey": "sk-REPLACE-ME"
+  },
+  "voice": {
+    "voiceId": "adeo_yousef",
+    "speed": 1.0
+  },
+  "knownTerms": ["LiteLLM", "OpenCode", "cc-switch", "ADEO", "ecouncil"],
+  "autoIdle": true,
+  "keystrokes": true,
+  "cursor": { "style": "dot" },
+  "output": { "trimLeadingBlank": true },
+  "redact": [
+    { "selector": ".xterm-rows > div:nth-child(10)", "blur": 18 }
+  ],
+  "intro": {
+    "title": "ADEO LiteLLM Gateway",
+    "subtitle": "One line. Any harness."
+  },
+  "outro": {
+    "title": "{{gatewayUrl}}/install",
+    "subtitle": "Claude Code · Codex CLI · Gemini CLI · OpenCode"
+  },
+  "setup": { "preflight": "bash preflight.sh" },
+  "scenes": [
+    {
+      "id": "s1-curl",
+      "hold": { "mode": "drift" },
+      "narration": "Configuring coding tools against the ADEO LiteLLM gateway takes exactly one line — the install endpoint, piped straight into bash.",
+      "actions": [
+        { "op": "goto", "url": "http://127.0.0.1:7681/" },
+        { "op": "waitFor", "target": { "selector": ".xterm" }, "timeoutMs": 10000 },
+        { "op": "click", "target": { "selector": ".xterm" } },
+        { "op": "pause", "ms": 1200 },
+        { "op": "type", "target": { "selector": "textarea.xterm-helper-textarea" }, "text": "curl -fsSL {{gatewayUrl}}/install | bash" },
+        { "op": "press", "key": "Enter" },
+        { "op": "pause", "ms": 2500 }
+      ]
+    },
+    {
+      "id": "s2-key",
+      "hold": { "mode": "drift" },
+      "narration": "Paste your gateway key — it's validated on the spot.",
+      "actions": [
+        { "op": "type", "target": { "selector": "textarea.xterm-helper-textarea" }, "text": "{{apiKey}}" },
+        { "op": "press", "key": "ArrowLeft" },
+        { "op": "pause", "ms": 400 },
+        { "op": "press", "key": "ArrowRight" },
+        { "op": "press", "key": "Enter" },
+        { "op": "pause", "ms": 3000 }
+      ]
+    },
+    {
+      "id": "s3-menu",
+      "hold": { "mode": "drift" },
+      "narration": "The script detects what's actually installed before offering anything — here, only Gemini and OpenCode.",
+      "actions": [
+        { "op": "pause", "ms": 700 },
+        { "op": "type", "target": { "selector": "textarea.xterm-helper-textarea" }, "text": "2" },
+        { "op": "press", "key": "Enter" },
+        { "op": "pause", "ms": 12000 }
+      ]
+    },
+    {
+      "id": "s4-done",
+      "hold": { "mode": "drift" },
+      "narration": "Done — OpenCode now points at the gateway, key stored locally. The same one-liner configures Claude Code, Codex, or Gemini on any machine.",
+      "actions": [
+        { "op": "still", "name": "configured" },
+        { "op": "pause", "ms": 4200 }
+      ]
+    }
+  ]
+}
